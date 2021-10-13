@@ -94,7 +94,7 @@ namespace utest
 			, _line_num(line_num)
 		{
 		}
-		const char* what() const override { return _msg.c_str(); }
+		const char* what() const throw() override { return _msg.c_str(); }
 		std::string what_str() const { return _msg; }
 		const char* file_name() const { return _file_name; }
 		int line_num() const { return _line_num; }
