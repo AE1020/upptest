@@ -57,7 +57,7 @@ For more information, please refer to <http://unlicense.org>
 
 namespace utest
 {
-#define TEST_FIXTURE(name)		class name : public utest::test	
+#define TEST_FIXTURE(name)		class name : public utest::Test	
 #define SETUP()			virtual void pre_test() override
 #define TEARDOWN()		virtual void post_test() override
 #define TEST_AUTO_NAME(name)	g_utestautoreg_test_##name
@@ -104,20 +104,20 @@ namespace utest
 		const int _line_num;
 	};
 
-	enum class status
+	enum class Status
 	{
 		not_run,
 		pass,
 		fail
 	};
 	
-	class info;
+	class Info;
 
-	struct result final
+	struct Result final
 	{
-		result()
+		Result()
 			: info(nullptr)
-			, status(status::not_run)
+			, status(Status::not_run)
 			, duration()
 			, err_message()
 			, err_file()
@@ -126,7 +126,7 @@ namespace utest
 
 		void exception(const std::exception& ex)
 		{
-			status = status::fail;
+			status = Status::fail;
 			err_message = "unhandled exception";
 			if (ex.what())
 			{
@@ -137,27 +137,27 @@ namespace utest
 
 		void fail(const std::string& msg, const std::string& file_name, const int line_num)
 		{
-			status = status::fail;
+			status = Status::fail;
 			err_message = msg;
 			err_file = file_name;
 			err_line = line_num;
 		}
 
-		const info* info;
-		status status;
+		const Info* info;
+		Status status;
 		std::chrono::milliseconds duration;
 		std::string err_message;
 		std::string err_file;
 		int err_line;
 	};
 
-	class test;
+	class Test;
 	
-	class info
+	class Info
 	{
 	public:
-		typedef std::function<std::unique_ptr<test>()> factory_func;
-		info(const factory_func& f_, const char* name_, const char* category_, const char* file_, const int line_)
+		typedef std::function<std::unique_ptr<Test>()> Factory_Func;
+		Info(const Factory_Func& f_, const char* name_, const char* category_, const char* file_, const int line_)
 			: f(f_)
 			, name(name_)
 			, category(category_)
@@ -165,14 +165,14 @@ namespace utest
 			, line(line_)
 		{}
 
-		factory_func f;
+		Factory_Func f;
 		const char* name;
 		const char* category;
 		const char* file;
 		const int line;
 	};
 
-	class default_fail_handler
+	class Default_Fail_Handler
 	{
 	public:
 		static void handle(const std::string& message, const char* file_name = "", const int line_num = 0)
@@ -181,8 +181,8 @@ namespace utest
 		}
 	};
 
-	template<class fail_handler>
-	class basic_assert
+	template<class Fail_Handler>
+	class Basic_Assert
 	{
 	public:
 		template<typename T1, typename T2>
@@ -258,25 +258,25 @@ namespace utest
 
 		static void fail(const std::string& message, const char* file_name = "", const int line_num = 0)
 		{
-			fail_handler::handle(message, file_name, line_num);
+			Fail_Handler::handle(message, file_name, line_num);
 		}
 	};
 
-	typedef basic_assert<default_fail_handler> assert;
+	typedef Basic_Assert<Default_Fail_Handler> assert;
 
-	class test
+	class Test
 	{
 	public:
-		virtual ~test() {}
+		virtual ~Test() {}
 
-		status execute(result& res)
+		Status execute(Result& res)
 		{
 			auto test_start_time = std::chrono::steady_clock::now();
 			try
 			{
 				pre_test();
 				execute_test();
-				res.status = status::pass;
+				res.status = Status::pass;
 			}
 			catch (const assert_fail_exception& ex)
 			{
@@ -294,66 +294,66 @@ namespace utest
 		}
 
 	protected:
-		test(){}
+		Test(){}
 		virtual void pre_test() {}
 		virtual void post_test() {}
 	private:
 		virtual void execute_test() = 0;
 	};	
 
-	class registry
+	class Registry
 	{
 	public:
-		typedef std::vector<const info*> container_type;
+		typedef std::vector<const Info*> Container_Type;
 
-		virtual ~registry();
+		virtual ~Registry();
 
-		static registry& get();
-		void add(const info* test)
+		static Registry& get();
+		void add(const Info* test)
 		{
 			_tests.push_back(test);
 		}
-		container_type& tests() { return _tests; }
+		Container_Type& tests() { return _tests; }
 
 	protected:
-		registry();		
+		Registry();		
 	private:
-		container_type _tests;
-		static std::unique_ptr<registry> _instance;
+		Container_Type _tests;
+		static std::unique_ptr<Registry> _instance;
 	};
 
-	class auto_registered_test
+	class Auto_Registered_Test
 	{
 	public:
-		explicit auto_registered_test(const info* info) : _info(info)
+		explicit Auto_Registered_Test(const Info* info) : _info(info)
 		{
-			registry::get().add(info);
+			Registry::get().add(info);
 		}
-		const info* _info;
+		const Info* _info;
 	};
 
-	class runner
+	class Runner
 	{
 	public:
-		typedef const info* const info_type;
+		typedef const Info* const Info_Type;
 
-		static status run(const info* const ti, result& out_res)
+		static Status run(const Info* const ti, Result& out_res)
 		{
 			auto tst = ti->f();
 			out_res.info = ti;
 			return tst->execute(out_res);
 		}
 
-		template<typename iterator_type, class execution_observer>
-		static status run(iterator_type itr_begin, iterator_type itr_end,
-			const execution_observer& observer)
+		template<typename Iterator_Type, class Execution_Observer>
+		static Status run(Iterator_Type itr_begin, Iterator_Type itr_end,
+			const Execution_Observer& observer)
 		{
-			return run(itr_begin, itr_end, [](info_type) { return true; }, observer);
+			return run(itr_begin, itr_end, [](Info_Type) { return true; }, observer);
 		}
 
-		template<typename iterator_type, class binary_predicate, class execution_observer>
-		static status run(iterator_type itr_begin, iterator_type itr_end, const binary_predicate& filter,
-			const execution_observer& observer)
+		template<typename Iterator_Type, class Binary_Predicate, class Execution_Observer>
+		static Status run(Iterator_Type itr_begin, Iterator_Type itr_end, const Binary_Predicate& filter,
+			const Execution_Observer& observer)
 		{
 			size_t pass(0), test_count(0);
 			for (auto itr = itr_begin; itr != itr_end; ++itr)
@@ -361,9 +361,9 @@ namespace utest
 				const auto* const ti = *itr;
 				if (filter(ti))
 				{
-					result res;
+					Result res;
 					auto r = run(ti, res);
-					if (r == status::pass)
+					if (r == Status::pass)
 					{
 						++pass;
 					}
@@ -371,31 +371,31 @@ namespace utest
 					observer(res);
 				}
 			}
-			return pass == test_count ? status::pass : status::fail;
+			return pass == test_count ? Status::pass : Status::fail;
 		}
 
-		template<typename container_type, class execution_observer>
-		static status run(const container_type& tests, const execution_observer& observer)
+		template<typename Container_Type, class Execution_Observer>
+		static Status run(const Container_Type& tests, const Execution_Observer& observer)
 		{
 			return run(tests.begin(), tests.end(), observer);
 		}
 
-		template<typename container_type, class binary_predicate, class execution_observer>
-		static status run(const container_type& tests, const binary_predicate& filter, const execution_observer& observer)
+		template<typename Container_Type, class Binary_Predicate, class Execution_Observer>
+		static Status run(const Container_Type& tests, const Binary_Predicate& filter, const Execution_Observer& observer)
 		{
 			return run(tests.begin(), tests.end(), filter, observer);
 		}
 
-		template<class execution_observer>
-		static status run_registered(const execution_observer& observer)
+		template<class Execution_Observer>
+		static Status run_registered(const Execution_Observer& observer)
 		{
-			return run(registry::get().tests(), [](info_type) { return true; }, observer);
+			return run(Registry::get().tests(), [](Info_Type) { return true; }, observer);
 		}
 
-		template<class binary_predicate, class execution_observer>
-		static status run_registered(const binary_predicate& filter, const execution_observer& observer)
+		template<class Binary_Predicate, class Execution_Observer>
+		static Status run_registered(const Binary_Predicate& filter, const Execution_Observer& observer)
 		{
-			return run(registry::get().tests(), filter, observer);
+			return run(Registry::get().tests(), filter, observer);
 		}
 	};
 
@@ -403,24 +403,24 @@ namespace utest
 
 	namespace detail
 	{
-		class _concrete_registry : public registry {};
+		class Concrete_Registry : public Registry {};
 	}
 
-	registry& registry::get()
+	Registry& Registry::get()
 	{
-		static std::unique_ptr<registry> instance;
+		static std::unique_ptr<Registry> instance;
 		if (!instance)
 		{
-			instance = std::make_unique<detail::_concrete_registry>();
+			instance = std::make_unique<detail::Concrete_Registry>();
 		}
 		return *instance;
 	}
 
-	registry::~registry()
+	Registry::~Registry()
 	{		
 	}
 
-	registry::registry()
+	Registry::Registry()
 		: _tests()
 	{
 	}
